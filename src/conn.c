@@ -32,6 +32,7 @@
  * $Id: conn.c,v 1.3 2015/02/25 10:33:57 kapyar Exp $
  */
 
+
 #include "conn.h"
 #include "queue.h"
 #include "state.h"
@@ -404,6 +405,24 @@ conn_loop(void)
 /*      break; */
     }
 
+#ifdef DEBUG
+    len = queue.len;
+    curconn = queue.beg;
+    min_timeout = cfg.conntimeout;
+    while (len--)
+    {
+      if(FD_ISSET(curconn->sd, &sdsetrd)) {
+          logw(2, "conn[%d]: can read.", curconn->sd);
+          state_conn_log(curconn);
+      }
+      if(FD_ISSET(curconn->sd, &sdsetwr)) {
+          logw(2, "conn[%d]: can write.", curconn->sd);
+          state_conn_log(curconn);
+      }
+      curconn = queue_next_elem(&queue, curconn);
+    }
+#endif
+
     /* calculating elapsed time */
     (void)gettimeofday(&tts, NULL);
     tval = 1000000ul * (tts.tv_sec - ts.tv_sec) +
@@ -752,11 +771,14 @@ conn_loop(void)
     if (rc == 0)
       continue;	/* timeout caused, we will do select() again */
 
+
+
     /* processing data on the sockets */
     len = queue.len;
     curconn = queue.beg;
     while (len--)
     {
+      logw(2, "conn[%d] is being serviced.", curconn->sd);
       switch (curconn->state)
       {
         case CONN_HEADER:
@@ -773,6 +795,7 @@ conn_loop(void)
               curconn = conn_close(curconn);
               break;
             }
+            logw(5, "conn[%d]: read %d bytes.", curconn->sd, rc);
             curconn->ctr += rc;
             if (curconn->state == CONN_HEADER)
               if (curconn->ctr >= MB_UNIT_ID)
@@ -862,6 +885,17 @@ conn_loop(void)
         case CONN_RESP:
           if (FD_ISSET(curconn->sd, &sdsetwr))
           {
+            logw(5, "conn[%d]: is ready to write.", curconn->sd);
+
+            int frame_len =  MB_FRAME(curconn->buf, MB_LENGTH_L) + HDRSIZE - curconn->ctr;
+            if(frame_len < 0 || frame_len > HDRSIZE + BUFSIZE) {
+                logw(5, "conn[%d]: invalid frame length", curconn->sd);
+            }
+
+            logw(5, "conn[%d]: Writing %d bytes", curconn->sd, MB_FRAME(curconn->buf, MB_LENGTH_L) +
+            HDRSIZE - curconn->ctr);
+            logw(5, "conn[%d]: ctr: %d", curconn->sd, curconn->ctr);
+
             rc = conn_write(curconn->sd,
                             curconn->buf + curconn->ctr,
                             MB_FRAME(curconn->buf, MB_LENGTH_L) +
@@ -871,6 +905,9 @@ conn_loop(void)
               curconn = conn_close(curconn);
               break;
             }
+
+            logw(5, "conn[%d]: %d bytes written.", curconn->sd, rc);
+
             curconn->ctr += rc;
             if (curconn->ctr == (MB_FRAME(curconn->buf, MB_LENGTH_L) + HDRSIZE))
               state_conn_set(curconn, CONN_HEADER);
@@ -902,4 +939,3 @@ conn_fix_request_header_len(conn_t *conn, unsigned char len)
     MB_FRAME(conn->buf, MB_LENGTH_L) = len;
   }
 }
-

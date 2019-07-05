@@ -76,53 +76,88 @@ state_conn_set(conn_t *conn, int state)
       conn->ctr = 0;
       conn->read_len = HDRSIZE;
 #ifdef DEBUG
-      logw(5, "conn[%s]: state now is CONN_HEADER",
-             inet_ntoa(conn->sockaddr.sin_addr));
+      logw(5, "conn[%d]: state now is CONN_HEADER",
+             conn->sd);
 #endif
       break;
     case CONN_RQST_FUNC:
       conn->read_len = HDRSIZE + MB_FRAME(conn->buf, MB_LENGTH_L);
 #ifdef DEBUG
-      logw(5, "conn[%s]: state now is CONN_RQST_FUNC",
-             inet_ntoa(conn->sockaddr.sin_addr));
+      logw(5, "conn[%d]: state now is CONN_RQST_FUNC",
+             conn->sd);
 #endif
     break;
     case CONN_RQST_NVAL:
 #ifdef DEBUG
-      logw(5, "conn[%s]: state now is CONN_RQST_NVAL",
-             inet_ntoa(conn->sockaddr.sin_addr));
+      logw(5, "conn[%d]: state now is CONN_RQST_NVAL",
+             conn->sd);
 #endif
     break;
     case CONN_RQST_TAIL:
 #ifdef DEBUG
-      logw(5, "conn[%s]: state now is CONN_RQST_TAIL",
-             inet_ntoa(conn->sockaddr.sin_addr));
+      logw(5, "conn[%d]: state now is CONN_RQST_TAIL",
+             conn->sd);
 #endif
     break;
     case CONN_TTY:
 #ifdef DEBUG
-      logw(5, "conn[%s]: state now is CONN_TTY",
-             inet_ntoa(conn->sockaddr.sin_addr));
+      logw(5, "conn[%d]: state now is CONN_TTY",
+             conn->sd);
 #endif
       break;
     case CONN_RESP:
       conn->ctr = 0;
 #ifdef DEBUG
-      logw(5, "conn[%s]: state now is CONN_RESP",
-             inet_ntoa(conn->sockaddr.sin_addr));
+      logw(5, "conn[%d]: state now is CONN_RESP",
+             conn->sd);
 #endif
       break;
     default:
       /* unknown state, exiting */
 #ifdef DEBUG
-      logw(5, "conn_set_state([%s]) - invalid state (%d)",
-             inet_ntoa(conn->sockaddr.sin_addr), state);
+      logw(5, "conn_set_state([%d]) - invalid state (%d)",
+             conn->sd, state);
 #endif
       exit (-1);
   }
   conn->state = state;
   /* reset timeout value */
   conn->timeout = cfg.conntimeout;
+}
+
+
+void
+state_conn_log(conn_t *conn)
+{
+  switch (conn->state)
+  {
+    case CONN_HEADER:
+      logw(5, "conn[%d]: state is CONN_HEADER",
+             conn->sd);
+      break;
+    case CONN_RQST_FUNC:
+      logw(5, "conn[%d]: state is CONN_RQST_FUNC",
+             conn->sd);
+      break;
+    case CONN_RQST_NVAL:
+      logw(5, "conn[%d]: state is CONN_RQST_NVAL",
+             conn->sd);
+    case CONN_RQST_TAIL:
+      logw(5, "conn[%d]: state is CONN_RQST_TAIL",
+             conn->sd);
+      break;
+    case CONN_TTY:
+      logw(5, "conn[%d]: state is CONN_TTY",
+             conn->sd);
+      break;
+    case CONN_RESP:
+      logw(5, "conn[%d]: state is CONN_RESP",
+             conn->sd);
+      break;
+    default:
+      logw(5, "conn_set_state([%d]) - invalid state (%d)",
+             conn->sd, conn->state);
+  }
 }
 
 /*
